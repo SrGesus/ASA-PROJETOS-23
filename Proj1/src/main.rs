@@ -15,7 +15,7 @@ macro_rules! parse_line {
                 let mut a_iter = a_str.split($separator);
                 Ok((
                     $(
-                        $crate::parse_value::<$t>(a_iter.next()),
+                        parse_value::<$t>(a_iter.next()),
                     )+
                 ))
             },
@@ -24,55 +24,52 @@ macro_rules! parse_line {
     })
 }
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Hash, PartialEq, Eq, Debug)]
 struct Piece {
-    x: i32,
-    y: i32,
+    x: u32,
+    y: u32,
 }
 
-
-
 impl Piece {
-    pub fn new(x: i32, y: i32) -> Self {
-        Self { x, y }
+    pub fn new(x: u32, y: u32) -> Self {
+        Self { x: x.max(y), y: x.min(y) }
     }
-    pub fn new_cut(x: i32, y: i32) -> Option<Self> {
-        if x < 0 || y < 0 {
-            return None;
+    pub fn cut_x(&self, dimension: u32) -> (Piece, Piece) {
+        (Piece::new(self.x-dimension, self.y), Piece::new(dimension, self.y))
+    }
+    pub fn cut_y(&self, dimension: u32) -> (Piece, Piece) {
+        (Piece::new(self.x, self.y-dimension), Piece::new(self.x, dimension))
+    }
+    pub fn get_price(self: Self, prices: &mut HashMap<Piece, u32>) -> u32 {
+        if let Some(price) = prices.get(&self) { return *price; };
+        
+        let mut price: u32 = 0;
+        // Cut Horizontally
+        for i in 1.max(self.x/2)..self.x {
+            let (piece1, piece2) = Self::cut_x(&self, i);
+            price = price.max(Self::get_price(piece1, prices) + Self::get_price(piece2, prices));
         }
-        Some(Self { x, y })
-    }
-    pub fn cut(&self, dimension: i32) -> (Option<Piece>, Option<Piece>) {
-        (Piece::new_cut(self.x-dimension, self.y), Piece::new_cut(self.x, self.y-dimension))
-    }
-    pub fn get_price(target: Option<Self>, prices: &mut HashMap<Piece, u32>) -> u32 {
-        let Some(target) = target else { return 0; };
-        match prices.get(&target) {
-            Some(price) => *price,
-            None => {
-                let mut price: u32 = 0;
-                for i in 1..target.x.max(target.y) {
-                    let (piece1, piece2) = Self::cut(&target, i);
-                    price = price.max(Self::get_price(piece1, prices) + Self::get_price(piece2, prices));
-                }
-                prices.insert(target, price);
-                price
-            }
+        // Cut Vertically
+        for i in 1.max(self.x/2)..self.y {
+            let (piece1, piece2) = Self::cut_y(&self, i);
+            price = price.max(Self::get_price(piece1, prices) + Self::get_price(piece2, prices));
         }
+        prices.insert(self, price);
+        price
     }
 }
 
 fn main() {
-    let (Some(x), Some(y)) = parse_line!(" ", i32, i32).unwrap() else { panic!()};
+    let (Some(x), Some(y)) = parse_line!(" ", u32, u32).unwrap() else { panic!()};
     println!("{}, {}", x, y);
     let (Some(_num_pieces),) = parse_line!(" ", usize).unwrap() else { panic!()};
 
     let mut prices: HashMap<Piece, u32> = HashMap::new();
 
-    while let Ok((Some(a), Some(b), Some(p))) = parse_line!(" ", i32, i32, u32) {
+    while let Ok((Some(a), Some(b), Some(p))) = parse_line!(" ", u32, u32, u32) {
         println!("{} {} {}", a, b, p);
         prices.insert(Piece::new(a, b), p);
     }
 
-    println!("{}", Piece::get_price(Some(Piece::new(x, y)), &mut prices));
+    println!("{}", Piece::get_price(Piece::new(x, y), &mut prices));
 }
