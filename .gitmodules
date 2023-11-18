@@ -1,3 +1,7 @@
 [submodule "Labs"]
 	path = Labs
 	url = https://github.com/SrGesus/ASA-Labs
+
+[submodule "Labs"]
+	path = ProjTester
+	url = https://github.com/SrGesus/ASA-Proj-Tester

@@ -28,7 +28,7 @@ struct Piece {
 
 struct PriceTable {
     prices: Vec<Vec<Option<u32>>>,
-    most_dense: Piece
+    most_dense: Piece,
     most_dense_price: usize
 }
 
@@ -43,8 +43,8 @@ impl PriceTable {
         self.prices[piece.x-1][piece.y-1] = Some(price);
         self.prices[piece.y-1][piece.x-1] = Some(price);
     }
-    pub fn is_optimal_density(self: &self, piece: &Piece, price: u32) -> Bool {
-        self.most_dense.area() * price == piece.area() * self.most_dense_price
+    pub fn is_optimal_density(self: &Self, piece: &Piece, price: u32) -> bool {
+        self.most_dense.area() * TryInto::<usize>::try_into(price).unwrap() == piece.area() * self.most_dense_price
     }
 }
 
@@ -52,7 +52,7 @@ impl Piece {
     pub fn new(x: usize, y: usize) -> Self {
         Self { x, y }
     }
-    pub fn area(self &Self) -> usize {
+    pub fn area(self: &Self) -> usize {
         x*y
     }
     pub fn cut_x(&self, dimension: usize) -> (Piece, Piece) {
