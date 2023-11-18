@@ -12,9 +12,7 @@ macro_rules! parse_line {
                 a_str.pop(); // Remove new_line
                 let mut a_iter = a_str.split($separator);
                 Ok((
-                    $(
-                        parse_value::<$t>(a_iter.next()),
-                    )+
+                    $( parse_value::<$t>(a_iter.next()), )+
                 ))
             },
             Err(err) => Err(err),
@@ -29,7 +27,9 @@ struct Piece {
 }
 
 struct PriceTable {
-    prices: Vec<Vec<Option<u32>>>
+    prices: Vec<Vec<Option<u32>>>,
+    most_dense: Piece
+    most_dense_price: usize
 }
 
 impl PriceTable {
@@ -43,13 +43,17 @@ impl PriceTable {
         self.prices[piece.x-1][piece.y-1] = Some(price);
         self.prices[piece.y-1][piece.x-1] = Some(price);
     }
+    pub fn is_optimal_density(self: &self, piece: &Piece, price: u32) -> Bool {
+        self.most_dense.area() * price == piece.area() * self.most_dense_price
+    }
 }
-
-static mut CALLS: i64 = -1;
 
 impl Piece {
     pub fn new(x: usize, y: usize) -> Self {
         Self { x, y }
+    }
+    pub fn area(self &Self) -> usize {
+        x*y
     }
     pub fn cut_x(&self, dimension: usize) -> (Piece, Piece) {
         (Piece::new(self.x-dimension, self.y), Piece::new(dimension, self.y))
@@ -58,27 +62,27 @@ impl Piece {
         (Piece::new(self.x, self.y-dimension), Piece::new(self.x, dimension))
     }
     pub fn get_price(self: Self, prices: &mut PriceTable) -> u32 {
-        unsafe {
-            CALLS += 1;
-        }
         if let Some(price) = prices.get(&self) { 
             return *price; 
         };
-        let mut price: u32 = 0;
-        // Cut Horizontally
-        for i in 1..self.x/2+1 {
-            let (piece1, piece2) = Self::cut_x(&self, i);
-            // println!("{:?} + {:?}", piece1, piece2);
-            price = price.max(Self::get_price(piece1, prices) + Self::get_price(piece2, prices));
+        for x in 1..&self.x+1 {
+            for y in 1..&self.y+1 {
+                let piece = Piece::new(x,y);
+                if let None = prices.get(&piece) {
+                    let mut price: u32 = 0;
+                    for i in 1..&piece.x/2+1 {
+                        let (piece1, piece2) = Self::cut_x(&piece, i);
+                        price = price.max(prices.get(&piece1).unwrap() + prices.get(&piece2).unwrap());
+                    }
+                    for i in 1..&piece.y/2+1 {
+                        let (piece1, piece2) = Self::cut_y(&piece, i);
+                        price = price.max(prices.get(&piece1).unwrap() + prices.get(&piece2).unwrap());
+                    }
+                    prices.insert(piece, price);
+                }
+            }
         }
-        // Cut Vertically
-        for i in 1..self.y/2+1 {
-            let (piece1, piece2) = Self::cut_y(&self, i);
-            // println!("{:?} + {:?}", piece1, piece2);
-            price = price.max(Self::get_price(piece1, prices) + Self::get_price(piece2, prices));
-        }
-        prices.insert(self, price);
-        price
+        prices.get(&self).unwrap()
     }
 }
 
@@ -94,9 +98,6 @@ fn main() {
         prices.insert(Piece::new(a, b), p);
     }
 
-    // println!("Price: {}", Piece::get_price(Piece::new(x, y), &mut prices));
-    Piece::get_price(Piece::new(x, y), &mut prices);
-    unsafe {
-        println!("{},{},{}", x,y,CALLS);
-    }
+    println!("{}", Piece::get_price(Piece::new(x, y), &mut prices));
+
 }
