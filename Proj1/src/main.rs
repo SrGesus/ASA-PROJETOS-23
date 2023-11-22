@@ -133,7 +133,7 @@ fn main() {
     }
     products.sizes.sort_unstable();
     products.sizes.dedup();
-    println!("{:?}", products.sizes);
+    //println!("{:?}", products.sizes);
 
     println!("{}", Piece::get_price(Piece::new(x, y), &mut prices, &products));
     // Piece::get_price(Piece::new(x, y), &mut prices);
