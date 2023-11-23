@@ -23,95 +23,122 @@ macro_rules! parse_line {
 }
 
 #[derive(Hash, PartialEq, Eq, Debug)]
-struct Piece {
-    x: usize,
-    y: usize,
-}
+struct Piece(usize, usize);
 
 struct PriceTable {
     // Optimal Piece Prices
-    prices: Vec<Vec<Option<u32>>>,
+    prices: Vec<Option<u32>>,
+    side: usize,
 }
 
 struct Products {
     // Client Piece Prices
-    products: Vec<Vec<u32>>,
-    sizes: Vec<usize>
+    products: Vec<u32>,
+    sizes: Vec<usize>,
+    side: usize,
+    best: (Piece, usize),
 }
 
 impl Products {
     pub fn new(x: usize, y: usize, n_pieces: usize) -> Self {
-        let max = x.max(y);
+        let max = x.max(y) + 1;
         Self {
-            products: vec![vec![0; max]; max],
-            sizes: Vec::with_capacity(n_pieces)
+            products: vec![0; max * max],
+            sizes: Vec::with_capacity(n_pieces),
+            side: max,
+            best: (Piece(1, 1), 0),
         }
     }
-    pub fn insert(self: &mut Self, piece: Piece, price: u32) {
-        if piece.x-1 >= self.products.len() || piece.y-1 >= self.products.len() {
+    pub fn get(&self, piece: &Piece) -> u32 {
+        unsafe { *self.products.get_unchecked(piece.0 + piece.1 * self.side) }
+    }
+    pub fn is_best(&self, piece: &Piece, price: u32) -> bool {
+        self.best.0.area() * price as usize >= piece.area() * self.best.1
+    }
+    pub fn insert(&mut self, piece: Piece, price: u32) {
+        if piece.0 >= self.products.len() || piece.1 >= self.products.len() {
             return;
         }
-        self.products[piece.x-1][piece.y-1] = price;
-        self.products[piece.y-1][piece.x-1] = price;
-        self.sizes.push(piece.x);
-        self.sizes.push(piece.y);
+        unsafe {
+            *self
+                .products
+                .get_unchecked_mut(piece.0 + piece.1 * self.side) = price;
+            *self
+                .products
+                .get_unchecked_mut(piece.1 + piece.0 * self.side) = price;
+        }
+        self.sizes.push(piece.0);
+        self.sizes.push(piece.1);
+        if self.is_best(&piece, price) {
+            self.best = (piece, price as usize);
+        }
     }
 }
 
 impl PriceTable {
     pub fn new(x: usize, y: usize) -> Self {
-        let max = x.max(y);
-        Self { 
-            prices: vec![vec![None; max]; max],
+        let max = x.max(y) + 1;
+        Self {
+            prices: vec![None; max * max],
+            side: max,
         }
     }
 
-    pub fn get(self: &Self, piece: &Piece) -> &Option<u32> {
-        &self.prices[piece.x-1][piece.y-1]
+    pub fn get(&self, piece: &Piece) -> &Option<u32> {
+        unsafe { self.prices.get_unchecked(piece.0 + piece.1 * self.side) }
     }
 
-    pub fn insert(self: &mut Self, piece: Piece, price: u32) {
-        // assert!(self.prices.len() >= piece.x-1);
-        // assert!(self.prices[piece.x-1].len() >= piece.x);
-        self.prices[piece.x-1][piece.y-1] = Some(price);
-        self.prices[piece.y-1][piece.x-1] = Some(price);
+    pub fn insert(&mut self, piece: Piece, price: u32) {
+        unsafe {
+            *self.prices.get_unchecked_mut(piece.0 + piece.1 * self.side) = Some(price);
+            *self.prices.get_unchecked_mut(piece.1 + piece.0 * self.side) = Some(price);
+        }
     }
 }
 
 // static mut CALLS: i64 = -1;
 
 impl Piece {
-    pub fn new(x: usize, y: usize) -> Self {
-        Self { x, y }
+    pub fn area(&self) -> usize {
+        self.0 * self.1
     }
     pub fn cut_x(&self, dimension: usize) -> (Piece, Piece) {
-        (Piece::new(self.x-dimension, self.y), Piece::new(dimension, self.y))
+        (Piece(self.0 - dimension, self.1), Piece(dimension, self.1))
     }
     pub fn cut_y(&self, dimension: usize) -> (Piece, Piece) {
-        (Piece::new(self.x, self.y-dimension), Piece::new(self.x, dimension))
+        (Piece(self.0, self.1 - dimension), Piece(self.0, dimension))
     }
-    pub fn get_price(self: Self, prices: &mut PriceTable, products: &Products) -> u32 {
-        if let Some(price) = prices.get(&self) { 
-            return *price; 
+    pub fn get_price(self, prices: &mut PriceTable, products: &Products) -> u32 {
+        if let Some(price) = prices.get(&self) {
+            return *price;
         };
-        let mut price: u32 = products.products[self.x-1][self.y-1];
+        let mut price: u32 = products.get(&self);
         // Cut Horizontally
         for i in &products.sizes {
-            if i >= &self.x {
+            if i >= &self.0 {
                 break;
             }
             let (piece1, piece2) = Self::cut_x(&self, *i);
             // println!("{:?} + {:?}", piece1, piece2);
-            price = price.max(piece1.get_price(prices, products) + piece2.get_price(prices, products));
+            price =
+                price.max(piece1.get_price(prices, products) + piece2.get_price(prices, products));
+            if products.is_best(&self, price) {
+                prices.insert(self, price);
+                return price;
+            }
         }
         // Cut Vertically
         for i in &products.sizes {
-            if i >= &self.y {
+            if i >= &self.1 {
                 break;
             }
             let (piece1, piece2) = Self::cut_y(&self, *i);
             // println!("{:?} + {:?}", piece1, piece2);
-            price = price.max(piece1.get_price(prices, products) + piece2.get_price(prices, products));
+            price =
+                price.max(piece1.get_price(prices, products) + piece2.get_price(prices, products));
+            if products.is_best(&self, price) {
+                break;
+            }
         }
         prices.insert(self, price);
         price
@@ -119,25 +146,22 @@ impl Piece {
 }
 
 fn main() {
-    let (Some(x), Some(y)) = parse_line!(" ", usize, usize).unwrap() else { panic!()};
-    // println!("{}, {}", x, y);
-    let (Some(n_pieces),) = parse_line!(" ", usize).unwrap() else { panic!()};
+    let (Some(x), Some(y)) = parse_line!(" ", usize, usize).unwrap() else {
+        panic!()
+    };
+    let (Some(n_pieces),) = parse_line!(" ", usize).unwrap() else {
+        panic!()
+    };
 
-    let mut prices: PriceTable = PriceTable::new(x,y);
+    let mut prices: PriceTable = PriceTable::new(x, y);
 
     let mut products: Products = Products::new(x, y, n_pieces);
 
     while let Ok((Some(a), Some(b), Some(p))) = parse_line!(" ", usize, usize, u32) {
-        // println!("{} {} {}", a, b, p);
-        products.insert(Piece::new(a, b), p);
+        products.insert(Piece(a, b), p);
     }
     products.sizes.sort_unstable();
     products.sizes.dedup();
-    //println!("{:?}", products.sizes);
 
-    println!("{}", Piece::get_price(Piece::new(x, y), &mut prices, &products));
-    // Piece::get_price(Piece::new(x, y), &mut prices);
-    // unsafe {
-    //     println!("{},{},{}", x,y,CALLS);
-    // }
+    println!("{}", Piece::get_price(Piece(x, y), &mut prices, &products));
 }
