@@ -165,7 +165,7 @@ fn main() {
     cut_sizes.sizes.sort_unstable();
     cut_sizes.sizes.dedup();
 
-    // println!("{}", Piece::price(Piece(x, y), &mut prices, &cut_sizes));
-    Piece::price(Piece(x, y), &mut prices, &cut_sizes);
-    println!("{},{},{},{},{:?}", x, y, n, cut_sizes.sizes.len(), start_time.elapsed().as_millis());
+    println!("{}", Piece::price(Piece(x, y), &mut prices, &cut_sizes));
+    // Piece::price(Piece(x, y), &mut prices, &cut_sizes);
+    // println!("{},{},{},{},{:?}", x, y, n, cut_sizes.sizes.len(), start_time.elapsed().as_millis());
 }
