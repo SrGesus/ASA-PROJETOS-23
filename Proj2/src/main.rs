@@ -47,6 +47,23 @@ impl Graph {
     pub fn out(&self, node: usize) -> impl Iterator<Item=&usize> + '_ {
         self.nodes[node].outgoing.iter()
     }
+    pub fn dfs(&mut self, start_node_index: usize) {
+        let mut stack = vec![start_node_index];
+
+        while let Some(node_index) = stack.pop() {
+            if !self.nodes[node_index].visited {
+                self.nodes[node_index].visited = true;
+                println!("Visiting Node: {}", node_index);
+
+                // Process neighbors (outgoing edges)
+                for &neighbor_index in &self.nodes[node_index].outgoing {
+                    if !self.nodes[neighbor_index].visited {
+                        stack.push(neighbor_index);
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn main() {
