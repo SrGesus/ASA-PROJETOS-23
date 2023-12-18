@@ -26,13 +26,8 @@ macro_rules! parse_line {
 struct Node {
     outgoing: Vec<usize>,
     incoming: Vec<usize>,
-    value: Option<u32>
-}
-
-enum Visited {
-    White,
-    Gray,
-    Black
+    value: Option<u32>,
+    visited: bool
 }
 
 struct Graph {
