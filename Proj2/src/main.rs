@@ -24,32 +24,26 @@ macro_rules! parse_line {
 
 #[derive(Default, Clone)]
 struct Node {
-    // Link Indexes
-    links: Vec<usize>
+    outgoing: Vec<usize>,
+    incoming: Vec<usize>
 }
-
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
-// Source -> Destination
-struct Link(usize, usize);
 
 struct Graph {
     nodes: Vec<Node>,
-    links: Vec<Link>,
 }
 
 impl Graph {
     pub fn new(n: usize, m: usize) -> Self {
         Self {
             nodes: vec![Default::default(); n],
-            links: Vec::with_capacity(m)
         }
     }
-    pub fn push(&mut self, l: Link) {
-        self.nodes[l.0].links.push(self.links.len());
-        self.links.push(l);
-    }
-    pub fn links(&self, node: usize) -> impl Iterator<Item=&Link> + '_ {
-        self.nodes[node].links.iter().map(|i| &self.links[*i])
+    // pub fn push(&mut self, l: Link) {
+    //     self.nodes[l.0].links.push(self.links.len());
+    //     self.links.push(l);
+    // }
+    pub fn out(&self, node: usize) -> impl Iterator<Item=&Node> + '_ {
+        self.nodes[node].out.iter().map(|i| &self.nodes[*i])
     }
 }
 
