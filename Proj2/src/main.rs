@@ -25,7 +25,14 @@ macro_rules! parse_line {
 #[derive(Default, Clone)]
 struct Node {
     outgoing: Vec<usize>,
-    incoming: Vec<usize>
+    incoming: Vec<usize>,
+    value: Option<u32>
+}
+
+enum Visited {
+    White,
+    Gray,
+    Black
 }
 
 struct Graph {
@@ -38,12 +45,12 @@ impl Graph {
             nodes: vec![Default::default(); n],
         }
     }
-    // pub fn push(&mut self, l: Link) {
-    //     self.nodes[l.0].links.push(self.links.len());
-    //     self.links.push(l);
-    // }
-    pub fn out(&self, node: usize) -> impl Iterator<Item=&Node> + '_ {
-        self.nodes[node].out.iter().map(|i| &self.nodes[*i])
+    pub fn push(&mut self, a: usize, b: usize) {
+        self.nodes[a].outgoing.push(b);
+        self.nodes[b].incoming.push(a);
+    }
+    pub fn out(&self, node: usize) -> impl Iterator<Item=&usize> + '_ {
+        self.nodes[node].outgoing.iter()
     }
 }
 
