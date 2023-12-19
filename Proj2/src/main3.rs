@@ -1,5 +1,3 @@
-use std::default;
-
 fn parse_value<T: std::str::FromStr>(value: Option<&str>) -> Option<T> {
     value?.parse::<T>().ok()
 }
@@ -23,13 +21,40 @@ macro_rules! parse_line {
     })
 }
 
+#[derive(Clone)]
+enum Visited {
+    White,
+    Gray,
+    Black
+}
+
+impl Default for Visited {
+    fn default() -> Self { Self::White }
+}
+impl Visited {
+    fn black(&self) -> bool { 
+        if let Visited::Black = self {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    fn white(&self) -> bool { 
+        if let Visited::White = self {
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+
 #[derive(Default, Clone)]
 struct Node {
     outgoing: Vec<usize>,
     incoming: Vec<usize>,
     value: u64,
     scc: Option<usize>,
-    visited: bool
+    visited: Visited
 }
 
 struct Graph {
@@ -58,75 +83,87 @@ impl Graph {
 
         for i in 0..self.nodes.len() {
             // If visited
-            if self.nodes[i].visited {
+            if self.nodes[i].visited.black() {
                 continue;
             }
             let mut stack = vec![i];
 
             while let Some(j) = stack.last() {
-                if !self.nodes[*j].visited {
-                    self.nodes[*j].visited = true;
-                    
-                    for adj in self.outcoming(*j) {
-                        if !self.nodes[*adj].visited {
-                            stack.push(*adj);
+                let j = *j;
+                match self.nodes[j].visited {
+                    Visited::White => {
+                        self.nodes[j].visited = Visited::Gray;
+                        
+                        for adj in self.outcoming(j) {
+                            if self.nodes[*adj].visited.white() {
+                                stack.push(*adj);
+                            }
                         }
+                    },
+                    Visited::Gray => {
+                        // println!("Visited {}", j+1);
+                        self.nodes[j].visited = Visited::Black;
+                        result.push(stack.pop().unwrap());
                     }
-                } else {
-                    // println!("Visited {}", j+1);
-                    // self.nodes[*j].visited = Visited::Black;
-                    result.push(stack.pop().unwrap());
+                    _ => {
+                        stack.pop();
+                    },
                 }
             }
         }
         for i in 0..self.nodes.len() {
-            self.nodes[i].visited = false;
+            self.nodes[i].visited = Visited::White;
         }
         result
     }
 
     pub fn dfs_final(&mut self) -> u64 {
         let mut max_path = 0;
-        let mut stack = vec![];
 
         for i in self.dfs_initial().iter().rev() {
+            let i = *i;
             // If visited
-            if self.nodes[*i].visited {
+            if self.nodes[i].visited.black() {
                 continue;
             }
 
             let mut scc_nodes: Vec<usize> = vec![];
-            stack.push(*i);
-            scc_nodes.push(*i);
-            self.nodes[*i].scc = Some(*i);
+            let mut stack = vec![i];
+            scc_nodes.push(i);
+            self.nodes[i].scc = Some(i);
 
-            while let Some(j) = stack.last().cloned() {
-                // If not visited
-                if !self.nodes[j].visited {
-                    self.nodes[j].visited = true;
-                    self.nodes[j].scc = Some(*i);
-
-                    // SCC
-                    for adj in self.incoming(j) {
-                        // If not visited
-                        if !self.nodes[*adj].visited {
-                            stack.push(*adj);
-                            scc_nodes.push(*adj);
+            while let Some(j) = stack.last() {
+                let j = *j;
+                match self.nodes[j].visited {
+                    Visited::White => {
+                        self.nodes[j].visited = Visited::Gray;
+                        self.nodes[j].scc = Some(i);
+    
+                        // SCC
+                        for adj in self.incoming(j) {
+                            let adj = *adj;
+                            // If not visited
+                            if !self.nodes[adj].visited.whit() {
+                                stack.push(adj);
+                                scc_nodes.push(adj);
+                            }
                         }
+                    },
+                    Visited::Gray => {
+                        stack.pop();
                     }
-                } else {
-                    stack.pop();
+                    _ => (),
                 }
             }
             let mut scc_value: u64 = 0;
             for no in scc_nodes {
                 for adj in self.incoming(no) {
-                    if self.nodes[*adj].scc != Some(*i) {
+                    if self.nodes[*adj].scc != Some(i) {
                         scc_value = scc_value.max(self.nodes[self.nodes[*adj].scc.unwrap()].value+1);
                     }
                 }
             }
-            self.nodes[*i].value = scc_value;
+            self.nodes[i].value = scc_value;
             max_path = max_path.max(scc_value);
         }
         max_path
