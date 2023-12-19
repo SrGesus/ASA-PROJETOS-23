@@ -168,13 +168,15 @@ impl Graph {
 }
 
 fn main() {
-    let (Some(n), Some(_)) = parse_line!(" ", usize, usize).unwrap() else {
+    let (Some(n), Some(m)) = parse_line!(" ", usize, usize).unwrap() else {
         panic!()
     };
     let mut graph = Graph::new(n);
+    let start_time = std::time::Instant::now();
+
     while let Ok((Some(a), Some(b))) = parse_line!(" ", usize, usize) {
         graph.push(a, b);
     }
 
-    println!("{}", graph.dfs_final());
+    println!("{},{},{},{:?}", graph.dfs_final(), n, m, start_time.elapsed().as_micros());
 }
