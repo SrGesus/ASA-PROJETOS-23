@@ -1,5 +1,3 @@
-use std::default;
-
 fn parse_value<T: std::str::FromStr>(value: Option<&str>) -> Option<T> {
     value?.parse::<T>().ok()
 }
@@ -22,6 +20,32 @@ macro_rules! parse_line {
         }
     })
 }
+#[derive(Clone, Debug)]
+enum Visited {
+    White,
+    Gray,
+    Black
+}
+
+impl Default for Visited {
+    fn default() -> Self { Self::White }
+}
+impl Visited {
+    fn black(&self) -> bool { 
+        if let Visited::Black = self {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    fn white(&self) -> bool { 
+        if let Visited::White = self {
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
 
 #[derive(Default, Clone)]
 struct Node {
@@ -29,7 +53,7 @@ struct Node {
     incoming: Vec<usize>,
     value: u64,
     scc: Option<usize>,
-    visited: bool
+    visited: Visited
 }
 
 struct Graph {
@@ -58,29 +82,34 @@ impl Graph {
 
         for i in 0..self.nodes.len() {
             // If visited
-            if self.nodes[i].visited {
+            if self.nodes[i].visited.black() {
                 continue;
             }
             let mut stack = vec![i];
 
             while let Some(j) = stack.last() {
-                if !self.nodes[*j].visited {
-                    self.nodes[*j].visited = true;
-                    
-                    for adj in self.outcoming(*j) {
-                        if !self.nodes[*adj].visited {
-                            stack.push(*adj);
+                match self.nodes[*j].visited {
+                    Visited::White => {
+                        self.nodes[*j].visited = Visited::Gray;
+                        
+                        for adj in self.outcoming(*j) {
+                            if self.nodes[*adj].visited.white() {
+                                stack.push(*adj);
+                            }
                         }
                     }
-                } else {
-                    // println!("Visited {}", j+1);
-                    // self.nodes[*j].visited = Visited::Black;
-                    result.push(stack.pop().unwrap());
+                    Visited::Gray => {
+                        self.nodes[*j].visited = Visited::Black;
+                        result.push(stack.pop().unwrap());
+                    }
+                    Visited::Black => {
+                        stack.pop();
+                    }
                 }
             }
         }
         for i in 0..self.nodes.len() {
-            self.nodes[i].visited = false;
+            self.nodes[i].visited = Visited::White;
         }
         result
     }
@@ -90,8 +119,9 @@ impl Graph {
         let mut stack = vec![];
 
         for i in self.dfs_initial().iter().rev() {
+            // println!("Doing: {}, {:?}", i+1, self.nodes[*i].visited);
             // If visited
-            if self.nodes[*i].visited {
+            if self.nodes[*i].visited.black() {
                 continue;
             }
 
@@ -102,19 +132,23 @@ impl Graph {
 
             while let Some(j) = stack.last().cloned() {
                 // If not visited
-                if !self.nodes[j].visited {
-                    self.nodes[j].visited = true;
+                if self.nodes[j].visited.white() {
+                    self.nodes[j].visited = Visited::Gray;
                     self.nodes[j].scc = Some(*i);
+                    // println!("Visited: {}", j+1);
 
                     // SCC
                     for adj in self.incoming(j) {
                         // If not visited
-                        if !self.nodes[*adj].visited {
+                        if self.nodes[*adj].visited.white() {
+                            // println!("Added: {}", j+1);
                             stack.push(*adj);
                             scc_nodes.push(*adj);
                         }
                     }
                 } else {
+                    // println!("End: {}", j+1);
+                    self.nodes[j].visited = Visited::Black;
                     stack.pop();
                 }
             }
